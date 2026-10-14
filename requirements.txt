@@ -1,0 +1,2 @@
+# Runtime: none. CodeAgent uses only the Python standard library
+# (tkinter for the GUI, urllib for the DeepSeek API), which keeps the .exe small.

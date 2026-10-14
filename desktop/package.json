@@ -1,0 +1,67 @@
+{
+  "name": "codeagent-desktop",
+  "version": "1.0.0",
+  "description": "CodeAgent desktop shell (Electron) for the Python agent backend",
+  "main": "main.js",
+  "scripts": {
+    "dev:renderer": "vite",
+    "build": "vite build",
+    "app": "vite build && electron .",
+    "demo": "vite build && electron . --demo",
+    "electron": "NODE_ENV=development electron .",
+    "dist:win": "vite build && electron-builder --win portable",
+    "dist:mac": "vite build && electron-builder --mac dir",
+    "test": "node --check main.js && node --check preload.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3",
+    "lucide-react": "^1.50.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "vite": "^8.3.2"
+  },
+  "build": {
+    "appId": "com.codeagent.desktop",
+    "productName": "CodeAgent",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "dist/**",
+      "package.json"
+    ],
+    "win": {
+      "target": "portable",
+      "extraResources": [
+        {
+          "from": "../dist/codeagent-backend.exe",
+          "to": "codeagent-backend.exe"
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "CodeAgent.exe"
+    },
+    "mac": {
+      "target": "dir",
+      "extraResources": [
+        {
+          "from": "../dist/codeagent-backend",
+          "to": "codeagent-backend"
+        }
+      ]
+    }
+  },
+  "productName": "CodeAgent",
+  "dependencies": {
+    "framer-motion": "^14.0.0"
+  }
+}

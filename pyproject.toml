@@ -1,0 +1,22 @@
+[project]
+name = "codeagent"
+version = "1.0.0"
+description = "Simplified Claude-Code-style coding agent powered by DeepSeek V4 Pro"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+codeagent = "codeagent.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+codeagent = ["samples/*.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

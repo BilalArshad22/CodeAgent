@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv*/
+build/
+dist/
+*.spec
+.pytest_cache/
+desktop/node_modules/
+desktop/dist/
+desktop/release/
+desktop/build/
+video/raw/
+video/out/
+*.egg-info/

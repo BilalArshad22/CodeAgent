@@ -1,0 +1,57 @@
+name: build-windows-exe
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          
+      - name: Install build deps
+        run: python -m pip install -r requirements-dev.txt
+        
+      - name: Test
+        run: python -m pytest -q
+        
+      - name: Build backend
+        run: >
+          pyinstaller --noconfirm --clean --onefile --console
+          --name codeagent-backend --paths src
+          --add-data "src\codeagent\samples;codeagent\samples"
+          launcher.py
+          
+      - name: Smoke-test the backend
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\codeagent-backend.exe -ArgumentList 'preprocess','--input','src\codeagent\samples\Architecture_Documentation.md','src\codeagent\samples\Architecture_View.md','--out','spec.json' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { exit 1 }
+          $spec = Get-Content spec.json -Raw | ConvertFrom-Json
+          if ($spec.meta.diagram_count -ne 13) { exit 1 }
+          $reply = '{"id": 1, "method": "list_samples", "params": {}}' | dist\codeagent-backend.exe bridge
+          $msg = $reply | Select-Object -First 1 | ConvertFrom-Json
+          if ($msg.id -ne 1 -or $msg.result.Count -ne 2) { Write-Error "bridge did not answer: $reply"; exit 1 }
+
+      - name: Build Electron app
+        shell: pwsh
+        run: |
+          cd desktop
+          npm ci
+          npm test
+          npm run dist:win
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CodeAgent-windows
+          path: desktop/release/CodeAgent.exe
+          if-no-files-found: error
