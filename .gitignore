@@ -1,14 +1,8 @@
 __pycache__/
 *.pyc
 .venv*/
-build/
-dist/
-*.spec
 .pytest_cache/
 desktop/node_modules/
-desktop/dist/
-desktop/release/
-desktop/build/
+desktop/release/win-unpacked/
 video/raw/
-video/out/
 *.egg-info/

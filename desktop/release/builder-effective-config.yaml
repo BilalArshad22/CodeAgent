@@ -1,0 +1,24 @@
+directories:
+  output: release
+  buildResources: build
+appId: com.codeagent.desktop
+productName: CodeAgent
+files:
+  - filter:
+      - main.js
+      - preload.js
+      - dist/**
+      - package.json
+win:
+  target: portable
+  extraResources:
+    - from: ../dist/codeagent-backend.exe
+      to: codeagent-backend.exe
+portable:
+  artifactName: CodeAgent.exe
+mac:
+  target: dir
+  extraResources:
+    - from: ../dist/codeagent-backend
+      to: codeagent-backend
+electronVersion: 44.5.1

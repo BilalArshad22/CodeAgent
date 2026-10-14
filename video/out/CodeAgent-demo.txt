@@ -1,0 +1,17 @@
+This is Code Agent: a simplified, Claude Code style coding agent. It reads an architecture specification and builds a complete software project on its own.
+
+The desktop app has four controls: the model provider and A P I key, the input specification files, an output folder, and a button to start. For this recording we use gemini 3.1 flash lite as a low-cost test model; the submission build runs on DeepSeek V4 Pro.
+
+First, the inputs are preprocessed into structured JSON. The architecture document and all 13 PlantUML diagrams become classes, use cases, a state machine and scenarios. 4 inconsistencies between the documents are flagged for the agent to resolve.
+
+Like Claude Code, the agent begins by writing a plan. Every task is tracked live, with exactly one in progress at a time.
+
+Then it works in a tool loop. The model reads the spec and writes files through sandboxed tools that can only touch the output folder, and each step appears in the transcript as it happens. Before finishing, the agent must pass a quality gate. It checks syntax, imports and the required deliverables, and whether every class, use case and state transition in the spec is implemented and tested. This run passed it on the first attempt.
+
+The run finished in 57 turns and about 4 minutes, writing 18 files.
+
+Here is the full transcript of the run, from the plan to the final check.
+
+The output includes source code, a package manifest, a Dockerfile, a README, tests, and the artifacts named in the spec. Its own test suite runs, and 10 of 10 tests pass.
+
+Code Agent ships as a single Windows executable: an Electron interface with a bundled Python backend, so no Python or Node installation is needed. Thanks for watching.
