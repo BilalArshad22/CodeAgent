@@ -2,7 +2,14 @@ name: build-windows-exe
 
 on:
   push:
+    branches:
+      - main
+    tags:
+      - "v*"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -55,3 +62,21 @@ jobs:
           name: CodeAgent-windows
           path: desktop/release/CodeAgent.exe
           if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }}
+          name: "CodeAgent ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'v1.0.0' }} (Windows Desktop)"
+          body: |
+            ## 🤖 CodeAgent - Standalone Windows Desktop Release
+            
+            Download **`CodeAgent.exe`** below and double-click to launch. Zero installation required (no Python or Node.js needed).
+            
+            ### ✨ Highlights
+            - **DeepSeek V4 Pro Engine**: Autonomous multi-turn architecture-to-code agent loop.
+            - **PlantUML & Architecture Preprocessor**: Deep diagram AST extraction and spec inconsistency checks.
+            - **Spec Coverage Gate**: Validates all methods, state transitions, scenarios, and tests before finishing.
+            - **Claude Code-Style UI**: Modern dark terminal transcript, real-time todo planning, and token telemetry.
+          files: desktop/release/CodeAgent.exe
