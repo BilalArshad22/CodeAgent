@@ -19,7 +19,18 @@
 [Building from Source](#-building--packaging) •
 [CLI & Headless](#-cli--headless-usage)
 
+<br/>
+
+[![Download CodeAgent.exe](https://img.shields.io/badge/⬇%20Download-CodeAgent.exe%20(v1.0.0)-2ea44f?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/BilalArshad22/CodeAgent/releases/download/v1.0.0/CodeAgent.exe)
+
+*(Double-click to run — No installation or Python required)*
+
 </div>
+
+---
+
+> [!TIP]
+> **To run the application immediately:** Click the green **[Download CodeAgent.exe](https://github.com/BilalArshad22/CodeAgent/releases/download/v1.0.0/CodeAgent.exe)** button above or grab it from the [Releases](https://github.com/BilalArshad22/CodeAgent/releases) tab. If you downloaded the repository as a ZIP using GitHub's green `<> Code` button, please note that GitHub excludes Git LFS binaries (>100 MB) from archive downloads; use the direct release download link instead.
 
 ---
 
