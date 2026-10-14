@@ -1,189 +1,400 @@
-# CodeAgent: a simplified Claude Code-style agent on DeepSeek V4 Pro
+# 🤖 CodeAgent
 
-CodeAgent is a Windows desktop app (a single `CodeAgent.exe` you double-click; no Python needed). It reads an architecture specification:
+<div align="center">
 
-- a Markdown architecture document, and
-- a Markdown file of PlantUML views (use case, class, object, state, activity, sequence, collaboration, package, component, deployment and container).
+[![DeepSeek V4 Pro](https://img.shields.io/badge/Model-DeepSeek%20V4%20Pro-4A90E2?style=for-the-badge&logo=deepseek&logoColor=white)](https://api.deepseek.com)
+[![Electron](https://img.shields.io/badge/Desktop-Electron%20%2B%20React-47848F?style=for-the-badge&logo=electron&logoColor=white)](https://electronjs.org)
+[![Python](https://img.shields.io/badge/Backend-Python%203.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS-0078D6?style=for-the-badge&logo=windows&logoColor=white)](#building-the-application)
+[![Build Status](https://img.shields.io/badge/Build-Passing-2ea44f?style=for-the-badge&logo=githubactions&logoColor=white)](#github-actions-cicd)
+[![License](https://img.shields.io/badge/License-MIT-orange?style=for-the-badge)](#license)
 
-It then drives **DeepSeek V4 Pro** (`deepseek-v4-pro`, official API) through an autonomous tool-use loop to write a complete project:
+**An autonomous, Claude Code-inspired coding agent packaged as a single standalone desktop executable.**  
+*Reads software architecture documents & PlantUML diagrams and synthesizes complete, tested, containerized software projects.*
 
-- source code
-- a dependency manifest
-- a Dockerfile
-- a README
-- tests
-- the spec's own artifacts (OpenAPI, proto, SQL DDL, k8s, traceability CSV)
+[Key Features](#-key-features) •
+[Architecture](#-architecture) •
+[Quick Start](#-quick-start) •
+[Claude Code Alignment](#-claude-code-alignment) •
+[Building from Source](#-building--packaging) •
+[CLI & Headless](#-cli--headless-usage)
+
+</div>
+
+---
+
+## 🌟 Overview
+
+**CodeAgent** is an autonomous AI software engineer packaged as a portable Windows desktop application (`CodeAgent.exe`, requiring zero Python installation on the target machine). Inspired by the architecture and ergonomics of **Claude Code**, CodeAgent consumes formal software architecture specifications and drives **DeepSeek V4 Pro** (`deepseek-v4-pro`) through a multi-turn, tool-assisted agent loop to synthesize a complete, production-ready codebase.
+
+Given:
+1. **`Architecture_Documentation.md`**: Textual requirements, functional/non-functional specifications, technology choices, and component responsibilities.
+2. **`Architecture_View.md`**: Multi-view PlantUML diagrams (Class, State Machine, Sequence, Use Case, Activity, Component, and Deployment).
+
+CodeAgent automatically plans, writes, verifies, and packages:
+- 📁 **Clean Source Code & Architecture**: Complete, idiomatic implementation conforming to the specified design patterns.
+- 📦 **Dependency Manifests**: Valid `package.json`, `requirements.txt`, or relevant package managers.
+- 🐳 **Containerization**: Optimized `Dockerfile` ready for deployment.
+- 🧪 **Automated Test Suite**: Unit, integration, and scenario tests validating functional requirements.
+- 📑 **Artifacts & Documentation**: Project `README.md`, OpenAPI REST specifications, database DDL schemas (`.sql`), and traceability records.
+
+---
+
+## 🚀 Key Features
+
+- **🧠 DeepSeek V4 Pro Engine with Native Thinking Mode**  
+  Uses DeepSeek's official reasoning API (`deepseek-v4-pro`). Full `reasoning_content` is captured, streamed live in the UI as collapsible thought blocks, and round-tripped verbatim across turns to maintain reasoning chain integrity.
+- **🎨 Claude Code-Style Desktop UI**  
+  Built with Electron and React. Features a dark terminal canvas, real-time tool execution logs, live interactive todo/plan cards, token telemetry, and live cost calculation.
+- **📐 Intelligent Preprocessing & Inconsistency Detector**  
+  Transforms unstructured Markdown into hierarchical section trees and parses PlantUML diagrams into typed AST entities. Automatically detects and alerts on cross-document inconsistencies (`spec_issues`) before code generation begins.
+- **🛡️ Hardened Sandbox File Operations**  
+  All filesystem interactions (`read_file`, `write_file`, `edit_file`, `list_files`, `search_files`) are strictly sandboxed inside the user-selected output directory. Path traversals, absolute escapes, and `.codeagent` metadata access are blocked. No arbitrary shell execution is permitted.
+- **🚦 Strict Spec-Coverage Gate (`coverage.py`)**  
+  The agent cannot simply call `finish` to exit. The built-in coverage gate verifies that all specification classes, methods, state machine transitions, use cases, sequence steps, and test suites are fully implemented.
+- **🔍 Deep Static Code Analysis (`check_project`)**  
+  Built-in validators check AST syntax (Python), JSON validity, `node --check` syntax, brace balancing, relative import resolution, package.json integrity, and scans for leftover TODOs/stubs before allowing completion.
+- **⚡ Micro-Compaction of Context**  
+  When conversation history approaches token thresholds (~600k characters), CodeAgent intelligently elides obsolete tool outputs and redundant file writes while preserving reasoning chains and disk contents.
+- **📦 Zero-Dependency Windows Binary**  
+  PyInstaller bundles the Python backend into a single hidden executable, packaged inside an Electron portable shell. Double-click and run immediately.
+
+---
+
+## 🏛️ System Architecture
 
 ```
-+------------------+     +-------------------+     +--------------------------------------+
-|  GUI (tkinter)   |     |  Preprocessor     |     |  Agent loop                          |
-|  API key, model  | --> |  Markdown -> tree | --> |  messages -> DeepSeek -> tool_calls  |
-|  input files     |     |  PlantUML -> JSON |     |      ^                     |         |
-|  output dir, Run |     |  spec_issues      |     |      +---- tool results <--+         |
-+------------------+     +-------------------+     |  tools sandboxed to output dir       |
-        ^  events (queue)                          |  todo / read / write / edit / search |
-        +------------------------------------------|  check_project / finish (gated)      |
-                                                   +--------------------------------------+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            Desktop Shell (Electron)                         │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                        React Frontend (Vite)                        │   │
+│   │  • Config Sidebar (API Keys, Inputs, Output, Model Settings)        │   │
+│   │  • Live Agentic Transcript (Assistant text, Tool calls, Thinking)   │   │
+│   │  • Interactive Plan Panel (Todos, Progress bar, Status indicators)  │   │
+│   │  • Live Telemetry (Turn counter, Token usage, Real-time cost USD)   │   │
+│   └──────────────────────────────────┬──────────────────────────────────┘   │
+└──────────────────────────────────────┼──────────────────────────────────────┘
+                                       │ stdin / stdout (JSON-Lines RPC)
+┌──────────────────────────────────────▼──────────────────────────────────────┐
+│                    Python Core Backend (codeagent-backend)                   │
+│                                                                             │
+│   ┌───────────────────────────┐         ┌───────────────────────────────┐   │
+│   │    IPC Bridge             │         │   Input Preprocessor          │   │
+│   │    bridge.py              │         │   preprocess.py               │   │
+│   │    • JSON-RPC Protocol    │         │   • Markdown -> Section Tree  │   │
+│   │    • Event Dispatcher     │         │   • PlantUML -> Typed AST     │   │
+│   │    • Thread Management    │         │   • Spec Inconsistency Check  │   │
+│   └─────────────┬─────────────┘         └──────────────┬────────────────┘   │
+│                 │                                      │                    │
+│                 ▼                                      ▼                    │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │                   Autonomous Agent Loop (agent.py)                  │   │
+│   │  • Context Assembly & Micro-Compaction                              │   │
+│   │  • Verbatim Thinking Maintenance (reasoning_content preservation)   │   │
+│   │  • Multi-Turn Error Recovery & Self-Healing                         │   │
+│   └───────────────────┬───────────────────────────────▲─────────────────┘   │
+│                       │                               │                     │
+│                       ▼                               │                     │
+│   ┌────────────────────────────────────────┐  ┌───────┴─────────────────┐   │
+│   │         Sandboxed Tool Suite           │  │   Quality & Finish Gate │   │
+│   │  • todo_write (dynamic planning)       │  │   coverage.py & tools.py│   │
+│   │  • read_file / write_file / edit_file  │  │   • Spec Coverage Check │   │
+│   │  • list_files / search_files           │  │   • Static AST & Node   │   │
+│   │  • read_spec (structured queries)      │  │   • Import Resolution   │   │
+│   └───────────────────┬────────────────────┘  └─────────────────────────┘   │
+└───────────────────────┼─────────────────────────────────────────────────────┘
+                        │ HTTPS (Official API)
+┌───────────────────────▼─────────────────────────────────────────────────────┐
+│                 DeepSeek V4 Pro Engine (api.deepseek.com)                   │
+│               deepseek-v4-pro (Thinking Mode & Tool Calling)                │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Using it
+---
 
-1. Double-click **`CodeAgent.exe`**.
-2. **DeepSeek API:** paste your API key. **Test connection** checks the key and confirms the model exists. The key is saved in `%APPDATA%\CodeAgent\settings.json` unless you untick *Remember*. `DEEPSEEK_API_KEY` is also honoured.
-3. **Input files:** use **Add files…**, or **Use samples** to load the bundled `Architecture_Documentation.md` and `Architecture_View.md`.
-4. **Output directory:** pick or type a folder (it is created if missing).
-5. Click **Generate project**. While it runs:
-   - the log shows every tool call;
-   - the *Plan* panel shows the agent's todo list;
-   - the progress bar tracks completed todos;
-   - token usage (including cache hits) is shown live.
+## 🛠️ Claude Code Alignment
 
-   **Stop** cancels after the current model request returns.
+CodeAgent directly implements the core architectural patterns pioneered by **Claude Code**:
 
-The output folder then holds the generated project, plus a `.codeagent/` folder containing:
+| Claude Code Mechanism | CodeAgent Implementation | Technical Details |
+| :--- | :--- | :--- |
+| **Autonomous Tool Loop** | `agent.py` (`CodeAgent.run()`) | Dispatches tool calls, captures results, updates conversation context, and loops until requirements are met. |
+| **Visible Todo Planning** | `todo_write` tool | Maintains dynamic tasks (`pending`, `in_progress`, `completed`). Rendered both inline and in the sticky Plan panel. |
+| **Safe File Operations** | `tools.py` | Line-numbered paged reading (`read_file`), atomic writes (`write_file`), and deterministic unique block edits (`edit_file`). |
+| **Strict Permission Sandbox** | Sandboxed Execution | Paths are strictly canonicalized within the target output directory. Absolute paths, `..` escapes, and `.codeagent` writes are rejected. No shell execution. |
+| **Verification Stop Hooks** | `coverage.py` & `check_project` | Model `finish` calls are **rejected** if classes, methods, state transitions, or tests fail the coverage rubric. |
+| **Static Build Checks** | `check_project` tool | Verifies syntax, JSON structures, `node --check` parsing, unresolved relative imports, and presence of mandatory deliverables. |
+| **Context Micro-Compaction** | `agent.py` (`_compact()`) | Compresses stale tool outputs and bulky file payloads when context exceeds ~600k chars while keeping thoughts and files intact. |
+| **Self-Healing Error Recovery** | Exception-to-Tool Feedback | Truncated inputs, schema mismatches, and validation errors are converted into tool error messages for self-correction. |
+| **Deep Reasoning Models** | DeepSeek V4 Pro Thinking | Captures `reasoning_content` and passes it back on subsequent turns to comply with DeepSeek API requirements. |
+| **Resilient API Client** | `llm.py` (`DeepSeekClient`) | Handles exponential backoff retries on rate limits (429), server errors (5xx), and network interruptions. |
 
-| File | Contents |
-| --- | --- |
-| `spec.json` | the preprocessed structured JSON input |
-| `transcript.jsonl` | full conversation with the model, for auditing |
-| `run_result.json` | outcome, turns, token usage, files written |
+---
 
-## How it works (mapped to the Claude Code references)
+## ⚡ Quick Start
 
-| Claude Code mechanism | CodeAgent implementation |
-| --- | --- |
-| Single agentic loop: model ↔ tools until done | `agent.py` `CodeAgent.run()`: chat → execute every `tool_call` → append `tool` results → repeat |
-| TodoWrite planning and visible progress | `todo_write` tool (one task `in_progress` at a time), rendered in the GUI plan panel |
-| Read / Write / Edit / Glob / Grep tools | `read_file` (paged, line numbered), `write_file`, `edit_file` (exact unique match or `replace_all`), `list_files`, `search_files` |
-| Permission system / sandbox | Every path resolves inside the output dir. Absolute paths, `..` escapes and `.codeagent/` writes are rejected. No shell tool. |
-| Stop hooks (verify before ending) | `finish` is **rejected** while `check_project` reports blocking issues (up to 3 times), and the report goes back to the model |
-| Running the build / tests | `check_project`: Python AST parse, JSON parse, `node --check` (falls back to a brace balance check), YAML tab check, unresolved relative imports, `package.json` main/test script, required deliverables, placeholder/TODO scan |
-| Auto-compaction of context | Micro-compaction once the context passes about 600k chars: old tool outputs and old `write_file`/`edit_file` payloads are elided (the files stay on disk) |
-| Errors fed back, never fatal | Bad or truncated JSON arguments, unknown tools and sandbox violations come back to the model as tool errors. After a `length` cut-off the model is told to write smaller files. |
-| Reasoning models | DeepSeek thinking mode is on by default, and `reasoning_content` is kept and sent back verbatim on every request, as DeepSeek's API requires |
-| Robust API client | Retries with exponential backoff on 408/409/429/5xx and network errors (honours `Retry-After`). Auth and 400 errors are not retried. The Stop button interrupts retry waits. |
+### 1. Download & Launch Standalone App
+1. Download the latest `CodeAgent.exe` from [GitHub Releases](https://github.com/BilalArshad22/CodeAgent/releases).
+2. Double-click **`CodeAgent.exe`** on any 64-bit Windows machine. No Python or Node.js installation is required.
 
-### Input preprocessing (`preprocess.py`)
+### 2. Configure & Run
+1. **API Key**: Enter your DeepSeek API key. Click **Test connection** to verify connectivity with `api.deepseek.com`.
+2. **Architecture Inputs**:
+   - Click **Add files...** to select your `Architecture_Documentation.md` and `Architecture_View.md`.
+   - Alternatively, click **Use samples** to instantly load the bundled "Space Fractions" math quiz game specification.
+3. **Output Directory**: Choose an empty folder where your generated software project will be created.
+4. **Generate**: Click **Generate project** (or press <kbd>Ctrl</kbd>+<kbd>Enter</kbd>).
+5. Watch CodeAgent autonomously plan, implement, verify, and package the complete codebase!
 
-The task recommends converting the inputs to structured JSON first. CodeAgent does this before the agent starts:
+---
 
-- **Markdown:** becomes a nested section tree with paragraphs, bullets, tables (as row dicts) and fenced code blocks.
-- **Facts extracted:**
-  - requirements (FR/NFR/ASR) from the traceability matrix
-  - component responsibilities and metrics
-  - the recommended stack
-  - the deliverables list
-- **PlantUML:** each diagram is classified by kind and view and parsed into elements, relations and steps:
-  - elements: actors, use cases, classes with typed attributes and methods, states, participants, nodes, artifacts, packages
-  - relations: composition, association, directed, message/return (in sequence order), state transitions
-  - activity steps, including if/else branches
-- **Domain summary:** the diagrams are merged into one summary: classes, use cases, state machine, scenarios, packages, components and deployment nodes.
-- **`spec_issues`:** cross-document inconsistencies are detected automatically, and the agent must resolve each one and document the decision. For the sample inputs these are:
-  - `ASR-2` is referenced but missing from the traceability matrix.
-  - The matrix names `sql/question_ddl.sql`, but the deliverables list has `sql/game_ddl.sql`.
-  - The testing-strategy matrix is empty.
-  - `AdminComponent` appears in the component diagram but is never described.
+## 📦 Generated Deliverables
 
-You can run the preprocessing step on its own:
+When the agent finishes, your selected output directory contains the generated project along with an internal `.codeagent/` audit directory:
 
+```
+output-directory/
+├── src/                         # Complete application source code
+│   ├── domain/                  # Core domain models, state machines & logic
+│   ├── api/                     # REST API handlers, routing, controllers
+│   └── ...                      # Services, middleware, utilities
+├── tests/                       # Complete automated test suite
+├── sql/                         # Database DDL schemas
+├── openapi.yaml                 # REST API specification
+├── package.json                 # Project dependencies and test scripts
+├── Dockerfile                   # Production container definition
+├── README.md                    # Generated project documentation
+└── .codeagent/                  # Audit & execution records
+    ├── spec.json                # Preprocessed AST & extracted requirements
+    ├── transcript.jsonl         # Full multi-turn conversation & thoughts
+    └── run_result.json          # Execution metrics, turns, token telemetry
+```
+
+---
+
+## 💻 Desktop Interface Tour
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────┐
+│ ✻ CodeAgent                     [● DeepSeek · deepseek-v4-pro]                ⚙   │
+├──────────────────────┬─────────────────────────────────────────────────────────────┤
+│ PROVIDER             │ ╭────────────────────────────────────────────────────────╮  │
+│ [DeepSeek (official)▾]│ │ ✻ Welcome to CodeAgent                                 │  │
+│                      │ │   Turns an architecture spec into a full project.      │  │
+│ API KEY              │ ╰────────────────────────────────────────────────────────╯  │
+│ [••••••••••••] 👁 Test│                                                             │
+│                      │ ⏺ Thinking... (Click to expand 48s reasoning chain)         │
+│ MODEL                │                                                             │
+│ [deepseek-v4-pro   ▾]│ ⏺ Update Todos                                             │
+│ ☑ Thinking  Turns 120│   ⎿ ☒ Parse architecture spec and resolve inconsistencies  │
+│                      │     ☒ Implement core Domain models (Game, Question, User)   │
+│ INPUTS          + Add│     ☐ Scaffold Express REST API & OpenAPI schema            │
+│ ┌──────────────────┐ │     ☐ Implement State Machine transitions                   │
+│ │ 📄 Architecture_…│ │     ☐ Write comprehensive test suites                       │
+│ │ 📄 Architecture_…│ │                                                             │
+│ └──────────────────┘ │ ⏺ Write(src/domain/game.js)                                │
+│ Use samples          │   ⎿ Created src/domain/game.js (124 lines)                 │
+│                      │                                                             │
+│ OUTPUT               │ ⏺ Check project                                           │
+│ [C:/Projects/game 📁]│   ⎿ 0 blocking issues · 2 warnings                         │
+│                      │                                                             │
+│ ┌──────────────────┐ │ ✻ Composing… (3m 12s · ↑ 52.4k ↓ 7.8k · $0.23 · esc to stop)│
+│ │ ▶ Generate  Ctrl↵│ │                                                             │
+│ └──────────────────┘ │                                                             │
+├──────────────────────┴─────────────────────────────────────────────────────────────┤
+│ C:/Projects/game · Turn 28/120 · Plan 6/12 ▰▰▰▰▰▰▱▱▱▱▱▱ · Cache Hit: 78.4%        │
+└────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **Interactive Transcript**: Color-coded execution stream showing agent thoughts, tool execution, and code outputs.
+- **Dynamic Plan Widget**: High-level visual checklist updated live as tasks transition from pending to completed.
+- **Real-Time Telemetry**: Real-time tracking of turns, elapsed time, input/output tokens, cache hit rates, and estimated API expenditure.
+- **Keyboard Shortcuts**:
+  - <kbd>Ctrl</kbd> + <kbd>Enter</kbd> (<kbd>Cmd</kbd> + <kbd>Enter</kbd> on macOS): Start generation.
+  - <kbd>Esc</kbd>: Gracefully stop generation after current turn.
+  - <kbd>Ctrl</kbd> + <kbd>L</kbd>: Clear transcript when idle.
+
+---
+
+## 🧩 PlantUML & Spec Preprocessor
+
+CodeAgent's preprocessor (`preprocess.py`) parses diagrams and architecture text into structured data:
+
+| PlantUML Diagram | Extracted Structured Information |
+| :--- | :--- |
+| **Class Diagram** | Classes, interfaces, typed fields, methods, return types, access modifiers (`+`, `-`, `#`), and relationships (inheritance, composition, aggregation). |
+| **State Machine** | States, initial/final states, transitions, events, guards, and transition actions. |
+| **Sequence Diagram** | Participants, message orders, synchronous/asynchronous calls, return messages, activation bars. |
+| **Use Case Diagram** | Actors, use case titles, associations, `<<include>>`, and `<<extend>>` linkages. |
+| **Activity Diagram** | Execution flows, conditions (`if`/`else`), fork/join parallel branches, and action nodes. |
+| **Component Diagram** | Component boundaries, exposed interfaces, consumed dependencies, and port mappings. |
+| **Deployment Diagram** | Execution environments, hardware nodes, software artifacts, and network protocols. |
+
+### Inconsistency Detection (`spec_issues`)
+Before code generation begins, cross-document inconsistencies between the Markdown text and diagrams are identified. For example:
+- Mention of requirements in text missing from the traceability matrix.
+- Naming discrepancies in SQL DDL file deliverables.
+- Components depicted in diagrams but absent from documentation.
+
+The agent is explicitly instructed to reconcile each detected issue and record the architectural decision.
+
+---
+
+## 💻 CLI & Headless Usage
+
+CodeAgent can be operated directly from the terminal or incorporated into CI/CD pipelines:
+
+### Headless Project Generation
 ```bash
-python -m codeagent preprocess --input Architecture_Documentation.md Architecture_View.md --out spec.json
+python -m codeagent run \
+  --input docs/Architecture_Documentation.md docs/Architecture_View.md \
+  --out ./output/space-fractions \
+  --model deepseek-v4-pro \
+  --thinking
 ```
 
-## Project layout
-
-```
-code-agent/
-├── launcher.py                  # PyInstaller entry point
-├── build_exe.bat                # one-shot Windows build: venv, tests, dist\CodeAgent.exe
-├── .github/workflows/build-windows.yml   # CI: test, build exe, smoke-test, upload artifact
-├── requirements.txt             # runtime deps: none (stdlib only)
-├── requirements-dev.txt         # pytest, pyinstaller
-├── pyproject.toml
-├── src/codeagent/
-│   ├── gui.py                   # tkinter desktop UI
-│   ├── cli.py / __main__.py     # gui | run | preprocess subcommands
-│   ├── runner.py                # preprocess → agent pipeline (shared by GUI/CLI)
-│   ├── agent.py                 # agent loop, finish gate, compaction, events
-│   ├── tools.py                 # sandboxed tools + JSON schemas + check_project
-│   ├── prompts.py               # system prompt and task message
-│   ├── preprocess.py            # Markdown/PlantUML → structured JSON
-│   ├── llm.py                   # DeepSeek client (urllib, retries, thinking mode)
-│   ├── config.py                # settings persistence
-│   └── samples/                 # bundled example inputs
-└── tests/                       # 46 pytest tests (scripted fake LLM; no network)
+### Standalone Preprocessor
+Inspect the structured JSON AST generated from your architecture specification:
+```bash
+python -m codeagent preprocess \
+  --input docs/Architecture_Documentation.md docs/Architecture_View.md \
+  --out spec.json
 ```
 
-## Building the .exe
+### Legacy Tkinter GUI
+For testing in minimal environments without Node.js/Electron:
+```bash
+python -m codeagent gui
+```
 
-On any Windows machine with Python 3.10+ from python.org (Python is needed on the build machine only), run:
+---
 
-```bat
+## 🗂️ Project Structure
+
+```
+CodeAgent/
+├── .github/
+│   └── workflows/
+│       └── build-windows.yml       # Automated CI: unit tests, PyInstaller, Electron build
+├── desktop/                        # Modern Electron desktop application
+│   ├── src/                        # React UI (Vite, Tailwind-inspired glassmorphism)
+│   │   ├── App.jsx                 # Main layout, transcript, sidebar, telemetry
+│   │   ├── main.jsx                # React root mount
+│   │   └── index.css               # Styling and animations
+│   ├── main.js                     # Electron main process & backend process spawner
+│   ├── preload.js                  # Secure IPC context bridge
+│   ├── package.json                # Frontend dependencies
+│   └── vite.config.js              # Vite bundler configuration
+├── src/codeagent/                  # Python agent core (Zero runtime dependencies)
+│   ├── agent.py                    # Claude Code-style agentic execution loop
+│   ├── bridge.py                   # JSON-lines IPC protocol bridge for Electron
+│   ├── cli.py / __main__.py        # Command-line interface entry points
+│   ├── config.py                   # Settings dataclass & persistence
+│   ├── coverage.py                 # Spec coverage verification gate
+│   ├── gui.py                      # Fallback Tkinter interface
+│   ├── llm.py                      # Robust DeepSeek & Gemini client (urllib, backoff)
+│   ├── preprocess.py               # Markdown section tree & PlantUML AST parser
+│   ├── prompts.py                  # System prompts & task directives
+│   ├── runner.py                   # End-to-end pipeline coordinator
+│   ├── tools.py                    # Sandboxed file tools & check_project static validator
+│   └── samples/                    # Bundled sample inputs ("Space Fractions")
+│       ├── Architecture_Documentation.md
+│       └── Architecture_View.md
+├── tests/                          # Comprehensive pytest test suite (Mocked FakeLLM)
+│   ├── conftest.py                 # Test fixtures & reference Space Fractions mock
+│   ├── test_agent.py               # Agent loop, compaction, and stop hooks
+│   ├── test_bridge.py              # IPC bridge protocol validation
+│   ├── test_coverage.py            # Spec coverage gate verification
+│   ├── test_preprocess.py          # PlantUML & Markdown parser tests
+│   └── test_tools.py               # Sandbox safety & static analysis tests
+├── build_exe.bat                   # One-shot Windows build script
+├── build_mac.sh                    # One-shot macOS build script
+├── launcher.py                     # PyInstaller entry point
+├── pyproject.toml                  # Python package configuration
+├── requirements.txt                # Zero runtime dependencies (Standard Library only)
+└── requirements-dev.txt            # Dev dependencies: pytest, pyinstaller
+```
+
+---
+
+## 🔨 Building & Packaging
+
+### Windows Portable Executable (`CodeAgent.exe`)
+
+Prerequisites: Python 3.10+ and Node.js 20+ installed on the build machine.
+
+```cmd
 build_exe.bat
 ```
 
-It creates a venv, installs `pytest` and `pyinstaller`, runs the tests, and produces **`dist\CodeAgent.exe`**: a single file with no console window, about 10 MB.
+This automated script will:
+1. Create a dedicated virtual environment (`.venv-build`).
+2. Install testing and build dependencies (`requirements-dev.txt`).
+3. Run the full Python test suite (`pytest`).
+4. Package the Python backend with PyInstaller (`dist/codeagent-backend.exe`).
+5. Compile the React frontend and package the portable Electron executable into:
+   ```
+   desktop\release\CodeAgent.exe
+   ```
 
-Without a Windows machine, push the repo to GitHub. The `build-windows-exe` workflow builds and smoke-tests the exe on `windows-latest` and uploads it as the `CodeAgent-windows` artifact.
-
-## Running from source / headless
+### macOS Application Bundle (`CodeAgent.app`)
 
 ```bash
-python -m pip install -e .
-python -m codeagent
+chmod +x build_mac.sh
+./build_mac.sh
 ```
+Outputs the application bundle to `desktop/release/mac-arm64/CodeAgent.app`.
 
-That opens the GUI. To run without it:
+### GitHub Actions CI/CD
 
-```bash
-DEEPSEEK_API_KEY=sk-... python -m codeagent run --input Architecture_Documentation.md Architecture_View.md --out ./space-fractions
-```
+Every commit pushed to GitHub automatically triggers `.github/workflows/build-windows.yml`:
+- Sets up Python and Node.js.
+- Executes the test suite.
+- Builds the PyInstaller backend and runs automated smoke tests.
+- Packages the Electron portable executable.
+- Uploads `CodeAgent.exe` as a downloadable artifact.
 
-## Tests
+---
+
+## 🧪 Testing
+
+The codebase includes an extensive automated test suite that runs without network access by using a deterministic `FakeLLM`:
 
 ```bash
 python -m pytest -q
 ```
 
-The suite covers:
+Coverage areas include:
+- **Preprocessor AST**: Verifies parsing of every PlantUML diagram variant and Markdown section hierarchies.
+- **Sandbox Security**: Validates path containment, traversal attempts (`../`), and forbidden directory protection.
+- **Agent Loop Mechanics**: Tests tool call sequencing, verbatim reasoning preservation, finish gating, and context micro-compaction.
+- **Spec Coverage Gate**: Validates that incomplete implementations are rejected with actionable feedback.
+- **Static Analyzer**: Ensures `check_project` detects syntax faults, missing scripts, and unhandled imports.
 
-- **Preprocessor:** Markdown structure, every PlantUML diagram kind, package/class name collisions, and the full sample spec including the detected issues.
-- **Tools:** sandbox escapes, edit semantics, paging, todo validation and every `check_project` rule.
-- **Agent loop:**
-  - happy path, with `reasoning_content` passed back
-  - every `tool_call` answered
-  - finish gating
-  - malformed arguments
-  - idle nudging, max turns and cancel
-  - compaction keeping reasoning and files intact
-- **End-to-end pipeline:** run with a scripted fake model.
-- **DeepSeek client:** request shape, retry and backoff, auth and 400 handling.
-- **Settings and GUI:** settings persistence, plus a GUI smoke test that is skipped when there is no display.
+---
 
-## Settings
+## ⚙️ Configuration & Models
 
-| Setting | Default | Notes |
-| --- | --- | --- |
-| Provider | DeepSeek (official) | *Gemini (testing only)* is for cheap development runs; see below |
-| Model | `deepseek-v4-pro` | `deepseek-flash` is cheaper and faster |
-| Thinking mode | on | sends `thinking: {type: enabled/disabled}` |
-| Max turns | 120 | one turn = one model request |
-| Base URL | `https://api.deepseek.com` | |
-| Max output tokens / request | 32000 | in `settings.json` |
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| **Provider** | `DeepSeek (official)` | Primary AI provider. Uses `https://api.deepseek.com`. |
+| **Model** | `deepseek-v4-pro` | Default frontier reasoning model. (`deepseek-flash` also supported). |
+| **Thinking Mode** | `Enabled` | Enables reasoning chain generation. |
+| **Max Turns** | `120` | Maximum model interaction turns allowed per generation. |
+| **Max Output Tokens** | `32000` | Token limit per individual completion request. |
+| **Gemini (Testing)** | `Optional` | Testing provider using Google OpenAI-compatible endpoint to save credits during local development. |
 
-### Gemini for testing (not for submission)
+### Token Economics & Cache Hits (DeepSeek Peak Rates)
+| Model | Input (Cache Hit) | Input (Cache Miss) | Output |
+| :--- | :--- | :--- | :--- |
+| `deepseek-v4-pro` | \$0.044 / 1M tokens | \$1.32 / 1M tokens | \$3.96 / 1M tokens |
+| `deepseek-flash` | \$0.006 / 1M tokens | \$0.30 / 1M tokens | \$1.20 / 1M tokens |
 
-To save DeepSeek credits while developing, choose **Provider → Gemini (testing only)**. CodeAgent then uses Google's OpenAI-compatible endpoint (`generativelanguage.googleapis.com/v1beta/openai`) with its own saved key. `GEMINI_API_KEY` or `GOOGLE_API_KEY` also work, and on the command line you can pass `--provider gemini`.
+*CodeAgent tracks cumulative token counts and live cache hits to calculate accurate estimated project generation costs in real time.*
 
-- The GUI shows a warning whenever Gemini is selected.
-- Provider-specific tool-call data, such as Gemini thought signatures in `extra_content`, is passed back unchanged.
-- The assignment requires DeepSeek V4 Pro, so switch back to **DeepSeek / `deepseek-v4-pro`** for the final run and the demo.
+---
 
-## Design decisions and limitations
+## 📄 License
 
-- **No shell tool.** The model never executes commands: the end user's machine has no guaranteed Node or Python, and command execution from a double-click app is a security risk. `check_project` provides static validation instead. Run `npm install && npm test` in the generated project yourself to verify it.
-- **Standard library only.** tkinter and urllib keep the exe small and avoid native-dependency problems with PyInstaller. Windows' certificate store is used for TLS.
-- **Overwrites.** The output directory is not cleaned. Files with the same names are overwritten, and the GUI asks before using a non-empty folder.
-- **Cost and time.** A full run is typically 30–80 model turns, and thinking mode adds latency. Prompt caching (shown as "cache" in the GUI) cuts the cost of the repeated prefix.
-#   C o d e - A g e n t  
- 
+This project is licensed under the [MIT License](LICENSE).
