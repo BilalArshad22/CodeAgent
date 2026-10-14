@@ -1,8 +1,8 @@
 __pycache__/
 *.pyc
+!build/codeagent-backend/localpycs/*.pyc
 .venv*/
 .pytest_cache/
 desktop/node_modules/
-desktop/release/win-unpacked/
 video/raw/
 *.egg-info/
