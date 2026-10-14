@@ -185,3 +185,5 @@ To save DeepSeek credits while developing, choose **Provider → Gemini (testing
 - **Standard library only.** tkinter and urllib keep the exe small and avoid native-dependency problems with PyInstaller. Windows' certificate store is used for TLS.
 - **Overwrites.** The output directory is not cleaned. Files with the same names are overwritten, and the GUI asks before using a non-empty folder.
 - **Cost and time.** A full run is typically 30–80 model turns, and thinking mode adds latency. Prompt caching (shown as "cache" in the GUI) cuts the cost of the repeated prefix.
+#   C o d e - A g e n t  
+ 
